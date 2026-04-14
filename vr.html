@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakUp — VR Proposal Room | Project Factory EU</title>
+  <meta name="description" content="Immersive 3D/VR proposal room for the SpeakUp Erasmus+ project.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-environment-component@1.3.7/dist/aframe-environment-component.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; overflow: hidden; background: #050510; }
+
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: linear-gradient(180deg, rgba(5,5,16,0.97) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    #topbar > * { pointer-events: auto; }
+    .tb-brand { display: flex; align-items: center; gap: 10px; }
+    .tb-logo {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; color: white; font-size: 13px;
+    }
+    .tb-name { color: #e0e7ff; font-size: 13px; font-weight: 600; }
+    .tb-sub  { color: rgba(255,255,255,0.32); font-size: 11px; margin-top: 1px; }
+    .tb-actions { display: flex; gap: 8px; }
+    .tb-btn {
+      padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8);
+      background: rgba(15,12,45,0.8); text-decoration: none;
+      display: inline-flex; align-items: center; gap: 5px;
+      backdrop-filter: blur(8px); transition: all 0.18s;
+    }
+    .tb-btn:hover { background: rgba(35,30,90,0.9); color: white; }
+    .tb-btn-vr {
+      background: linear-gradient(135deg, #6366f1, #7c3aed);
+      border-color: transparent; color: white;
+    }
+    .tb-btn-vr:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    #hint {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 100; display: flex; gap: 12px;
+      padding: 8px 18px; border-radius: 24px;
+      background: rgba(5,5,20,0.72); border: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(8px); pointer-events: none;
+    }
+    .hk { color: rgba(255,255,255,0.42); font-size: 11px; display: flex; align-items: center; gap: 4px; }
+    .hk span {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 600;
+      color: rgba(255,255,255,0.58);
+    }
+
+    #loader {
+      position: fixed; inset: 0; z-index: 999; background: #050510;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      transition: opacity 0.7s;
+    }
+    .ld-icon  { font-size: 40px; }
+    .ld-title { color: white; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+    .ld-sub   { color: rgba(255,255,255,0.32); font-size: 12px; }
+    .ld-bar   { width: 156px; height: 2px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+    .ld-fill  { height: 100%; background: linear-gradient(90deg, #4f46e5, #c084fc); animation: lf 2.2s ease-out forwards; }
+    @keyframes lf { from { width: 0% } to { width: 100% } }
+
+    #guide {
+      position: fixed; inset: 0; z-index: 98;
+      background: rgba(0,0,0,0.72); backdrop-filter: blur(5px);
+      display: none; align-items: center; justify-content: center;
+      transition: opacity 0.4s;
+    }
+    .gb {
+      background: rgba(10,8,40,0.97); border: 1px solid rgba(99,102,241,0.28);
+      border-radius: 22px; padding: 38px 42px; max-width: 440px; width: 92%; text-align: center;
+    }
+    .gb-icon  { font-size: 38px; margin-bottom: 14px; }
+    .gb-title { color: white; font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+    .gb-sub   { color: rgba(255,255,255,0.48); font-size: 13px; line-height: 1.65; margin-bottom: 22px; }
+    .gb-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 22px; }
+    .gc {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px; padding: 10px 12px; text-align: left;
+    }
+    .gc-k    { color: #818cf8; font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+    .gc-d    { color: rgba(255,255,255,0.42); font-size: 11px; }
+    .gb-btn  {
+      width: 100%; padding: 13px; border-radius: 12px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white; font-weight: 700; font-size: 14px; border: none; cursor: pointer; font-family: inherit;
+    }
+    .gb-skip { margin-top: 10px; color: rgba(255,255,255,0.22); font-size: 11px; cursor: pointer; }
+    .gb-skip:hover { color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ld-icon">🌐</div>
+  <div class="ld-title">VR Proposal Room</div>
+  <div class="ld-sub">Rendering panel textures…</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+</div>
+
+<div id="guide">
+  <div class="gb">
+    <div class="gb-icon">🥽</div>
+    <div class="gb-title">SpeakUp VR Proposal Room</div>
+    <div class="gb-sub">5 floating panels surround you. Drag to look, WASD to move, or use a VR headset.</div>
+    <div class="gb-grid">
+      <div class="gc"><div class="gc-k">DRAG MOUSE</div><div class="gc-d">Look around</div></div>
+      <div class="gc"><div class="gc-k">W A S D</div><div class="gc-d">Move forward / strafe</div></div>
+      <div class="gc"><div class="gc-k">SCROLL</div><div class="gc-d">Move forward</div></div>
+      <div class="gc"><div class="gc-k">🥽 BUTTON</div><div class="gc-d">Enter VR headset</div></div>
+    </div>
+    <button class="gb-btn" id="guide-enter">▶ Enter the Room</button>
+    <div class="gb-skip" id="guide-skip">Skip — just let me in</div>
+  </div>
+</div>
+
+<div id="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">PF</div>
+    <div>
+      <div class="tb-name">Project Factory EU</div>
+      <div class="tb-sub">Immersive Proposal Room — VR</div>
+    </div>
+  </div>
+  <div class="tb-actions">
+    <a href="index.html" class="tb-btn">← 2D Version</a>
+    <button class="tb-btn tb-btn-vr" id="vr-btn">🥽 Enter VR</button>
+  </div>
+</div>
+
+<div id="hint">
+  <div class="hk"><span>DRAG</span> Look</div>
+  <div class="hk"><span>W A S D</span> Move</div>
+  <div class="hk"><span>🥽</span> Full VR</div>
+</div>
+
+<a-scene
+  id="scene"
+  background="color:#050510"
+  fog="type:exponential;color:#050510;density:0.009"
+  loading-screen="enabled:false"
+  renderer="antialias:true;colorManagement:true"
+  vr-mode-ui="enabled:false"
+  webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking"
+>
+  <a-assets id="assets" timeout="60000"></a-assets>
+
+  <a-entity environment="
+    preset: starry; skyType: gradient;
+    skyColor: #050510; horizonColor: #12093f;
+    groundColor: #050510; groundColor2: #080316;
+    groundTexture: none; dressing: none; grid: none;
+    fog: 0.65; numStars: 2800; starDist: 260;
+  "></a-entity>
+
+  <a-light type="ambient"     color="#07052a" intensity="5"></a-light>
+  <a-light type="directional" color="#6366f1" intensity="0.9" position="0 8 -4"></a-light>
+  <a-light type="point" color="#818cf8" intensity="1.1" distance="22" decay="2" position="0 4 -3"></a-light>
+  <a-light type="point" color="#c084fc" intensity="0.7" distance="16" decay="2" position="-4 3 -2"></a-light>
+  <a-light type="point" color="#60a5fa" intensity="0.7" distance="16" decay="2" position="4 3 -2"></a-light>
+
+  <!-- floor rings -->
+  <a-torus position="0 0.01 -3" radius="3"   radius-tubular="0.014" rotation="90 0 0" material="color:#4338ca;emissive:#4338ca;emissiveIntensity:0.5;opacity:0.36;transparent:true;shader:flat" animation="property:rotation;from:90 0 0;to:90 360 0;loop:true;dur:24000;easing:linear"></a-torus>
+  <a-torus position="0 0.01 -3" radius="5.5" radius-tubular="0.022" rotation="90 0 0" material="color:#6366f1;emissive:#6366f1;emissiveIntensity:0.35;opacity:0.2;transparent:true;shader:flat"  animation="property:rotation;from:90 0 0;to:90 -360 0;loop:true;dur:38000;easing:linear"></a-torus>
+  <a-torus position="0 0.01 -3" radius="8"   radius-tubular="0.029" rotation="90 0 0" material="color:#818cf8;emissive:#818cf8;emissiveIntensity:0.25;opacity:0.14;transparent:true;shader:flat" animation="property:rotation;from:90 0 0;to:90 360 0;loop:true;dur:52000;easing:linear"></a-torus>
+
+  <!-- orbs -->
+  <a-sphere position="-2.5 3.8 -6"  radius="0.11" material="color:#6366f1;emissive:#6366f1;emissiveIntensity:0.8;opacity:0.7;transparent:true;shader:flat" animation="property:position;from:-2.5 3.8 -6;to:-2.5 4.6 -6;dir:alternate;loop:true;dur:4000;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="3 3.4 -5.5"   radius="0.08" material="color:#a78bfa;emissive:#a78bfa;emissiveIntensity:0.8;opacity:0.7;transparent:true;shader:flat" animation="property:position;from:3 3.4 -5.5;to:3 4.2 -5.5;dir:alternate;loop:true;dur:3200;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="-4.5 3.2 -2"  radius="0.09" material="color:#c084fc;emissive:#c084fc;emissiveIntensity:0.8;opacity:0.65;transparent:true;shader:flat" animation="property:position;from:-4.5 3.2 -2;to:-4.5 4.0 -2;dir:alternate;loop:true;dur:5000;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="5 3 -1.5"     radius="0.08" material="color:#60a5fa;emissive:#60a5fa;emissiveIntensity:0.8;opacity:0.65;transparent:true;shader:flat" animation="property:position;from:5 3 -1.5;to:5 3.8 -1.5;dir:alternate;loop:true;dur:3800;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="0 5.8 -7"     radius="0.16" material="color:#4f46e5;emissive:#4f46e5;emissiveIntensity:0.6;opacity:0.45;transparent:true;shader:flat" animation="property:position;from:0 5.8 -7;to:0 6.6 -7;dir:alternate;loop:true;dur:6200;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="-1.5 2.5 0"   radius="0.06" material="color:#f472b6;emissive:#f472b6;emissiveIntensity:0.9;opacity:0.55;transparent:true;shader:flat" animation="property:position;from:-1.5 2.5 0;to:-1.5 3.3 0;dir:alternate;loop:true;dur:2900;easing:easeInOutSine"></a-sphere>
+  <a-sphere position="1.8 2.8 -1"   radius="0.06" material="color:#34d399;emissive:#34d399;emissiveIntensity:0.9;opacity:0.55;transparent:true;shader:flat" animation="property:position;from:1.8 2.8 -1;to:1.8 3.6 -1;dir:alternate;loop:true;dur:3500;easing:easeInOutSine"></a-sphere>
+
+  <!-- === PANELS (canvas textures set via JS) === -->
+
+  <!-- P0: WELCOME — center -->
+  <a-entity id="p0"
+    position="0 1.7 -4.5"
+    scale="0 0 0"
+    animation__float="property:position;from:0 1.7 -4.5;to:0 1.95 -4.5;dir:alternate;loop:true;dur:3000;easing:easeInOutSine"
+    animation__in="property:scale;from:0 0 0;to:1 1 1;dur:800;delay:300;easing:easeOutBack">
+    <a-plane id="p0-plane" width="2.85" height="2.05"
+      material="transparent:true;shader:flat;side:double;alphaTest:0.1"
+      class="hoverable">
+    </a-plane>
+  </a-entity>
+
+  <!-- P1: PROBLEM — 30° left -->
+  <a-entity id="p1"
+    position="-3.2 1.7 -4.2" rotation="0 32 0"
+    scale="0 0 0"
+    animation__float="property:position;from:-3.2 1.7 -4.2;to:-3.2 1.95 -4.2;dir:alternate;loop:true;dur:3600;easing:easeInOutSine"
+    animation__in="property:scale;from:0 0 0;to:1 1 1;dur:800;delay:500;easing:easeOutBack">
+    <a-plane id="p1-plane" width="2.85" height="2.05"
+      material="transparent:true;shader:flat;side:double;alphaTest:0.1"
+      class="hoverable">
+    </a-plane>
+  </a-entity>
+
+  <!-- P2: OBJECTIVES — 30° right -->
+  <a-entity id="p2"
+    position="3.2 1.7 -4.2" rotation="0 -32 0"
+    scale="0 0 0"
+    animation__float="property:position;from:3.2 1.7 -4.2;to:3.2 1.95 -4.2;dir:alternate;loop:true;dur:4200;easing:easeInOutSine"
+    animation__in="property:scale;from:0 0 0;to:1 1 1;dur:800;delay:700;easing:easeOutBack">
+    <a-plane id="p2-plane" width="2.85" height="2.05"
+      material="transparent:true;shader:flat;side:double;alphaTest:0.1"
+      class="hoverable">
+    </a-plane>
+  </a-entity>
+
+  <!-- P3: WORK PACKAGES — 62° left -->
+  <a-entity id="p3"
+    position="-5 1.7 -2.5" rotation="0 62 0"
+    scale="0 0 0"
+    animation__float="property:position;from:-5 1.7 -2.5;to:-5 1.95 -2.5;dir:alternate;loop:true;dur:3900;easing:easeInOutSine"
+    animation__in="property:scale;from:0 0 0;to:1 1 1;dur:800;delay:900;easing:easeOutBack">
+    <a-plane id="p3-plane" width="2.85" height="2.05"
+      material="transparent:true;shader:flat;side:double;alphaTest:0.1"
+      class="hoverable">
+    </a-plane>
+  </a-entity>
+
+  <!-- P4: IMPACT — 62° right -->
+  <a-entity id="p4"
+    position="5 1.7 -2.5" rotation="0 -62 0"
+    scale="0 0 0"
+    animation__float="property:position;from:5 1.7 -2.5;to:5 1.95 -2.5;dir:alternate;loop:true;dur:4600;easing:easeInOutSine"
+    animation__in="property:scale;from:0 0 0;to:1 1 1;dur:800;delay:1100;easing:easeOutBack">
+    <a-plane id="p4-plane" width="2.85" height="2.05"
+      material="transparent:true;shader:flat;side:double;alphaTest:0.1"
+      class="hoverable">
+    </a-plane>
+  </a-entity>
+
+  <!-- camera -->
+  <a-entity id="rig" position="0 0 1">
+    <a-camera id="cam"
+      look-controls="pointerLockEnabled:false;magicWindowTrackingEnabled:true;touchEnabled:true"
+      wasd-controls="acceleration:20;fly:false"
+      position="0 1.6 0">
+      <a-cursor fuse="false" color="#818cf8"
+        material="color:#818cf8;shader:flat;opacity:0.75"
+        geometry="primitive:ring;radiusInner:0.010;radiusOuter:0.014"
+        animation__click="property:scale;startEvents:click;from:0.5 0.5 0.5;to:1 1 1;dur:200">
+      </a-cursor>
+    </a-camera>
+  </a-entity>
+
+</a-scene>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CANVAS TEXTURE ENGINE
+   ═══════════════════════════════════════════════════ */
+const CW = 1152, CH = 830; // canvas size (matches panel aspect ratio: 2.85/2.05)
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+}
+
+function drawBase(ctx, W, H, bgColors, accentColor, glowColor) {
+  ctx.clearRect(0, 0, W, H);
+
+  // background with rounded corners
+  const R = 20;
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, bgColors[0]);
+  bg.addColorStop(1, bgColors[1]);
+  roundRectPath(ctx, 2, 2, W-4, H-4, R);
+  ctx.fillStyle = bg;
+  ctx.fill();
+
+  // outer glow border
+  ctx.save();
+  ctx.shadowBlur = 32;
+  ctx.shadowColor = glowColor;
+  ctx.strokeStyle = glowColor;
+  ctx.lineWidth = 3;
+  roundRectPath(ctx, 3, 3, W-6, H-6, R);
+  ctx.stroke();
+  ctx.restore();
+
+  // inner border (subtle)
+  ctx.strokeStyle = `${accentColor}44`;
+  ctx.lineWidth = 1.5;
+  roundRectPath(ctx, 6, 6, W-12, H-12, R-4);
+  ctx.stroke();
+
+  // top accent bar gradient
+  const barG = ctx.createLinearGradient(0, 0, W, 0);
+  barG.addColorStop(0,   `${accentColor}00`);
+  barG.addColorStop(0.2, accentColor);
+  barG.addColorStop(0.8, accentColor);
+  barG.addColorStop(1,   `${accentColor}00`);
+  ctx.fillStyle = barG;
+  ctx.fillRect(6, 6, W-12, 7);
+
+  // top inner glow
+  const topGlow = ctx.createLinearGradient(0, 0, 0, 80);
+  topGlow.addColorStop(0, `${glowColor}30`);
+  topGlow.addColorStop(1, `${glowColor}00`);
+  ctx.fillStyle = topGlow;
+  ctx.fillRect(6, 6, W-12, 80);
+
+  // bottom fade
+  const btm = ctx.createLinearGradient(0, H-100, 0, H);
+  btm.addColorStop(0, `${bgColors[1]}00`);
+  btm.addColorStop(1, `${bgColors[1]}cc`);
+  ctx.fillStyle = btm;
+  ctx.fillRect(6, H-100, W-12, 94);
+}
+
+function divider(ctx, W, y, color) {
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0,   `${color}00`);
+  g.addColorStop(0.1, `${color}55`);
+  g.addColorStop(0.9, `${color}55`);
+  g.addColorStop(1,   `${color}00`);
+  ctx.fillStyle = g;
+  ctx.fillRect(60, y, W-120, 2);
+}
+
+function bigStat(ctx, value, label, cx, topY, valColor, lblColor) {
+  // stat background blob
+  const r = 90;
+  ctx.save();
+  ctx.shadowBlur = 28;
+  ctx.shadowColor = valColor + '88';
+  ctx.font = `900 ${r}px Inter, sans-serif`;
+  ctx.fillStyle = valColor;
+  ctx.textAlign = 'center';
+  ctx.fillText(value, cx, topY + r * 0.78);
+  ctx.restore();
+
+  // label (small, dim)
+  ctx.font = `500 26px Inter, sans-serif`;
+  ctx.fillStyle = lblColor;
+  ctx.textAlign = 'center';
+  // wrap at ~150px wide
+  const words = label.split(' ');
+  let line = '', lines = [];
+  for (const w of words) {
+    const test = line + (line ? ' ' : '') + w;
+    if (ctx.measureText(test).width > 190) { lines.push(line); line = w; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  lines.forEach((l, i) => ctx.fillText(l, cx, topY + r + 24 + i * 32));
+}
+
+/* ── PANEL 0: WELCOME ────────────────────────── */
+function drawWelcome(ctx, W, H) {
+  drawBase(ctx, W, H, ['rgba(22,14,65,0.96)', 'rgba(8,5,35,0.96)'], '#818cf8', '#6366f1');
+
+  // tag
+  ctx.font = `600 26px Inter, sans-serif`;
+  ctx.fillStyle = '#6366f1';
+  ctx.textAlign = 'center';
+  ctx.fillText('✦  ERASMUS+  KA220-YOU   ·   PROJECT FACTORY EU  ✦', W/2, 72);
+
+  // main title glow
+  ctx.save();
+  ctx.shadowBlur = 28;
+  ctx.shadowColor = '#6366f1';
+  ctx.font = `900 108px Inter, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.fillText('SpeakUp:', W/2, 200);
+  ctx.restore();
+
+  // subtitle
+  ctx.font = `600 44px Inter, sans-serif`;
+  ctx.fillStyle = '#c7d2fe';
+  ctx.fillText('Digital Literacy Against', W/2, 274);
+  ctx.fillText('Online Disinformation', W/2, 328);
+
+  divider(ctx, W, 375, '#6366f1');
+
+  // meta pills row
+  ctx.font = `500 30px Inter, sans-serif`;
+  ctx.fillStyle = '#818cf8';
+  ctx.fillText('2025 – 2027   ·   6 Countries   ·   500+ Youth', W/2, 428);
+
+  ctx.font = `400 26px Inter, sans-serif`;
+  ctx.fillStyle = '#4f46e5';
+  ctx.fillText('Lead: Project Factory EU   ·   Expert: Ali Ulusoy', W/2, 476);
+
+  divider(ctx, W, 520, '#4338ca');
+
+  // CTA button
+  const bx = 120, by = 570, bw = W-240, bh = 80, br = 40;
+  const btnG = ctx.createLinearGradient(bx, 0, bx+bw, 0);
+  btnG.addColorStop(0, '#312e81'); btnG.addColorStop(1, '#4338ca');
+  ctx.save();
+  ctx.shadowBlur = 16; ctx.shadowColor = '#6366f155';
+  roundRectPath(ctx, bx, by, bw, bh, br);
+  ctx.fillStyle = btnG; ctx.fill();
+  ctx.restore();
+
+  ctx.font = `600 30px Inter, sans-serif`;
+  ctx.fillStyle = '#e0e7ff';
+  ctx.textAlign = 'center';
+  ctx.fillText('▶  Turn left & right — 4 panels await', W/2, by + 50);
+
+  // bottom caption
+  ctx.font = `400 22px Inter, sans-serif`;
+  ctx.fillStyle = '#3730a388';
+  ctx.fillText('immersive-proposal-room.netlify.app', W/2, H - 28);
+}
+
+/* ── PANEL 1: PROBLEM ────────────────────────── */
+function drawProblem(ctx, W, H) {
+  drawBase(ctx, W, H, ['rgba(35,8,8,0.96)', 'rgba(14,3,3,0.96)'], '#ef4444', '#dc2626');
+
+  ctx.font = `800 54px Inter, sans-serif`;
+  ctx.fillStyle = '#fca5a5'; ctx.textAlign = 'center';
+  ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = '#ef444466';
+  ctx.fillText('THE PROBLEM', W/2, 80);
+  ctx.restore();
+
+  // two stats
+  bigStat(ctx, '67%', 'encounter disinformation every week',
+    W * 0.27, 110, '#f87171', '#fecaca');
+  bigStat(ctx, '42%', 'cannot identify fake content',
+    W * 0.73, 110, '#f87171', '#fecaca');
+
+  divider(ctx, W, 415, '#dc2626');
+
+  ctx.font = `500 32px Inter, sans-serif`;
+  ctx.fillStyle = '#fca5a5'; ctx.textAlign = 'center';
+  ctx.fillText('Only 18% ever received media literacy training', W/2, 474);
+
+  ctx.font = `400 26px Inter, sans-serif`;
+  ctx.fillStyle = '#7f1d1d';
+  ctx.fillText('Eurobarometer 2024  ·  EU Media Literacy Index  ·  EAVI Barometer', W/2, 516);
+
+  divider(ctx, W, 558, '#991b1b');
+
+  // impact quote
+  const qg = ctx.createLinearGradient(0, 0, W, 0);
+  qg.addColorStop(0, '#ef444400'); qg.addColorStop(0.5, '#ef444418'); qg.addColorStop(1, '#ef444400');
+  ctx.fillStyle = qg;
+  ctx.fillRect(60, 580, W-120, 110);
+
+  ctx.font = `italic 500 29px Inter, sans-serif`;
+  ctx.fillStyle = '#fca5a5cc';
+  ctx.fillText('"Disinformation has become a crisis for European', W/2, 625);
+  ctx.fillText('democracy — this project is part of the solution."', W/2, 662);
+
+  ctx.font = `400 22px Inter, sans-serif`;
+  ctx.fillStyle = '#7f1d1d88';
+  ctx.fillText('SpeakUp — Erasmus+ KA220-YOU', W/2, H - 28);
+}
+
+/* ── PANEL 2: OBJECTIVES ─────────────────────── */
+function drawObjectives(ctx, W, H) {
+  drawBase(ctx, W, H, ['rgba(2,26,14,0.96)', 'rgba(1,10,5,0.96)'], '#10b981', '#059669');
+
+  ctx.font = `800 54px Inter, sans-serif`;
+  ctx.fillStyle = '#6ee7b7'; ctx.textAlign = 'center';
+  ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = '#10b98166';
+  ctx.fillText('OBJECTIVES', W/2, 80);
+  ctx.restore();
+
+  const items = [
+    { title: '500 Youth Trained',        sub: '12h critical digital literacy programme',    y: 140 },
+    { title: '80 Facilitators Certified', sub: 'Train-the-trainer (ToT) model',              y: 270 },
+    { title: '30+ Open Resources',        sub: 'Creative Commons · 6 languages',             y: 400 },
+    { title: '4 Policy Roundtables',      sub: '2 EU policy briefs published',               y: 530 },
+  ];
+  items.forEach(({ title, sub, y }) => {
+    // bullet dot glow
+    ctx.save();
+    ctx.shadowBlur = 15; ctx.shadowColor = '#10b981';
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath(); ctx.arc(80, y + 18, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.font = `700 38px Inter, sans-serif`;
+    ctx.fillStyle = '#a7f3d0'; ctx.textAlign = 'left';
+    ctx.fillText(title, 108, y + 28);
+
+    ctx.font = `400 28px Inter, sans-serif`;
+    ctx.fillStyle = '#6ee7b7';
+    ctx.fillText(sub, 108, y + 66);
+
+    if (y < 530) divider(ctx, W, y + 90, '#064e3b');
+  });
+
+  ctx.font = `400 22px Inter, sans-serif`;
+  ctx.fillStyle = '#06472088';
+  ctx.textAlign = 'center';
+  ctx.fillText('SpeakUp — Digital Literacy for European Youth', W/2, H - 28);
+}
+
+/* ── PANEL 3: WORK PACKAGES ─────────────────── */
+function drawWorkPackages(ctx, W, H) {
+  drawBase(ctx, W, H, ['rgba(30,18,0,0.96)', 'rgba(12,7,0,0.96)'], '#f59e0b', '#d97706');
+
+  ctx.font = `800 54px Inter, sans-serif`;
+  ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'center';
+  ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = '#f59e0b66';
+  ctx.fillText('WORK PACKAGES', W/2, 80);
+  ctx.restore();
+
+  const wps = [
+    { num: 'WP1', title: 'Coordination & Quality',    org: 'Project Factory EU',  period: 'M1–M24', y: 130 },
+    { num: 'WP2', title: 'Needs Assessment',           org: 'Univ. of Gdańsk',     period: 'M1–M5',  y: 255 },
+    { num: 'WP3', title: 'Curriculum Development',    org: 'SpeakUp NGO Germany', period: 'M4–M10', y: 380 },
+    { num: 'WP4', title: 'Training Delivery',          org: 'All 6 Partners',      period: 'M8–M20', y: 505 },
+    { num: 'WP5', title: 'Dissemination & Evaluation',org: 'Project Factory EU',  period: 'M18–M24',y: 630 },
+  ];
+  wps.forEach(({ num, title, org, period, y }) => {
+    // WP badge
+    const bx = 52, bw = 96, bh = 48, br = 10;
+    const badgeG = ctx.createLinearGradient(bx, 0, bx+bw, 0);
+    badgeG.addColorStop(0, '#92400e'); badgeG.addColorStop(1, '#78350f');
+    roundRectPath(ctx, bx, y + 8, bw, bh, br);
+    ctx.fillStyle = badgeG; ctx.fill();
+
+    ctx.font = `800 26px Inter, sans-serif`;
+    ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'center';
+    ctx.fillText(num, bx + bw/2, y + 39);
+
+    ctx.font = `700 33px Inter, sans-serif`;
+    ctx.fillStyle = '#fde68a'; ctx.textAlign = 'left';
+    ctx.fillText(title, 164, y + 35);
+
+    ctx.font = `400 26px Inter, sans-serif`;
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText(`${org}   ·   ${period}`, 164, y + 66);
+
+    if (y < 630) divider(ctx, W, y + 86, '#78350f');
+  });
+
+  ctx.font = `400 22px Inter, sans-serif`;
+  ctx.fillStyle = '#78350f88';
+  ctx.textAlign = 'center';
+  ctx.fillText('6 Partner Countries  ·  24-Month Duration', W/2, H - 28);
+}
+
+/* ── PANEL 4: IMPACT ─────────────────────────── */
+function drawImpact(ctx, W, H) {
+  drawBase(ctx, W, H, ['rgba(14,7,35,0.96)', 'rgba(6,3,20,0.96)'], '#a78bfa', '#7c3aed');
+
+  ctx.font = `800 54px Inter, sans-serif`;
+  ctx.fillStyle = '#c4b5fd'; ctx.textAlign = 'center';
+  ctx.save(); ctx.shadowBlur = 22; ctx.shadowColor = '#7c3aed66';
+  ctx.fillText('IMPACT', W/2, 80);
+  ctx.restore();
+
+  // two main stats
+  bigStat(ctx, '500+', 'young people directly trained',
+    W * 0.27, 110, '#a78bfa', '#c4b5fd');
+  bigStat(ctx, '1,600+', 'multiplier effect reach',
+    W * 0.73, 110, '#a78bfa', '#c4b5fd');
+
+  divider(ctx, W, 415, '#7c3aed');
+
+  // secondary stats row
+  const smStats = [
+    { val: '30+', lbl: 'Open Resources' },
+    { val: '6',   lbl: 'Languages' },
+    { val: '80',  lbl: 'Facilitators' },
+    { val: '4',   lbl: 'Roundtables' },
+  ];
+  const colW = (W - 80) / 4;
+  smStats.forEach(({ val, lbl }, i) => {
+    const cx = 40 + colW * i + colW / 2;
+    ctx.font = `700 36px Inter, sans-serif`;
+    ctx.fillStyle = '#818cf8'; ctx.textAlign = 'center';
+    ctx.fillText(val, cx, 493);
+    ctx.font = `400 22px Inter, sans-serif`;
+    ctx.fillStyle = '#6d28d9';
+    ctx.fillText(lbl, cx, 524);
+  });
+
+  divider(ctx, W, 558, '#4c1d95');
+
+  // contact block
+  const cx2 = 220, cy2 = 590, cr = 12, cw = W-440, ch = 130;
+  const cg = ctx.createLinearGradient(cx2, 0, cx2+cw, 0);
+  cg.addColorStop(0, '#4c1d9555'); cg.addColorStop(1, '#312e8155');
+  roundRectPath(ctx, cx2, cy2, cw, ch, cr);
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = '#7c3aed44'; ctx.lineWidth = 1.5;
+  roundRectPath(ctx, cx2, cy2, cw, ch, cr); ctx.stroke();
+
+  ctx.font = `700 30px Inter, sans-serif`;
+  ctx.fillStyle = '#818cf8'; ctx.textAlign = 'center';
+  ctx.fillText('happykidstr@gmail.com', W/2, cy2 + 50);
+
+  ctx.font = `400 26px Inter, sans-serif`;
+  ctx.fillStyle = '#6d28d9';
+  ctx.fillText('Project Factory EU  ·  Ali Ulusoy', W/2, cy2 + 90);
+
+  ctx.font = `400 22px Inter, sans-serif`;
+  ctx.fillStyle = '#4c1d9588';
+  ctx.textAlign = 'center';
+  ctx.fillText('Erasmus+ KA220-YOU  ·  SpeakUp  ·  2025–2027', W/2, H - 28);
+}
+
+/* ═══════════════════════════════════════════════════
+   MAIN INIT — attach canvas textures to A-Frame planes
+   ═══════════════════════════════════════════════════ */
+const drawFns = [drawWelcome, drawProblem, drawObjectives, drawWorkPackages, drawImpact];
+
+function buildTextures() {
+  drawFns.forEach((fn, i) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = CW; canvas.height = CH;
+    const ctx = canvas.getContext('2d');
+    try { fn(ctx, CW, CH); } catch(e) { console.warn('draw error p' + i, e); }
+    const plane = document.getElementById('p' + i + '-plane');
+    if (!plane) return;
+    plane.setAttribute('material', { shader:'flat', src:canvas, transparent:true, side:'double', alphaTest:0.05 });
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   SCENE EVENT HANDLERS
+   ═══════════════════════════════════════════════════ */
+const scene  = document.getElementById('scene');
+const loader = document.getElementById('loader');
+const guide  = document.getElementById('guide');
+const topbar = document.getElementById('topbar');
+const hint   = document.getElementById('hint');
+
+let shown = false;
+function safeShow() {
+  if (shown) return; shown = true;
+  buildTextures();
+  loader.style.opacity = '0'; loader.style.transition = 'opacity 0.7s';
+  setTimeout(() => { loader.style.display='none'; if (!sessionStorage.getItem('vr-seen')) guide.style.display='flex'; }, 720);
+}
+
+// fonts.ready races 2.5s timeout; scene.loaded races 7s failsafe
+Promise.all([
+  Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2500))]),
+  new Promise(r => { if (scene.hasLoaded) { r(); return; } scene.addEventListener('loaded', r, {once:true}); setTimeout(r, 7000); })
+]).then(safeShow);
+
+setTimeout(safeShow, 9000); // absolute failsafe
+
+function closeGuide() {
+  sessionStorage.setItem('vr-seen', '1');
+  guide.style.opacity = '0'; guide.style.transition = 'opacity 0.4s';
+  setTimeout(() => guide.style.display = 'none', 420);
+}
+document.getElementById('guide-enter').addEventListener('click', closeGuide);
+document.getElementById('guide-skip').addEventListener('click', closeGuide);
+
+document.getElementById('vr-btn').addEventListener('click', () => scene.enterVR());
+scene.addEventListener('enter-vr', () => { topbar.style.display='none'; hint.style.display='none'; guide.style.display='none'; });
+scene.addEventListener('exit-vr',  () => { topbar.style.display='flex'; hint.style.display='flex'; });
+</script>
+</body>
+</html>

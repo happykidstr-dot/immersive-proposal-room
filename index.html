@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpeakUp — Immersive Proposal Room | Project Factory</title>
+  <meta name="description" content="Experience the SpeakUp: Digital Literacy Against Disinformation proposal in an interactive 3D environment. A KA220-YOU Erasmus+ cooperation project by Project Factory." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:    #04070F;
+      --bg-mid:     #080d1c;
+      --bg-card:    rgba(255,255,255,0.035);
+      --bg-glass:   rgba(8,16,44,0.78);
+      --accent:     #3b82f6;
+      --accent2:    #8b5cf6;
+      --accent3:    #10b981;
+      --gold:       #f59e0b;
+      --red:        #ef4444;
+      --border:     rgba(255,255,255,0.07);
+      --border2:    rgba(59,130,246,0.2);
+      --text-hi:    #eef2ff;
+      --text-mid:   #94a3b8;
+      --text-lo:    #3f4f6f;
+      --glow-blue:  0 0 60px rgba(59,130,246,0.18);
+      --glow-pur:   0 0 60px rgba(139,92,246,0.15);
+      --radius-lg:  18px;
+      --radius-md:  12px;
+      --radius-sm:  8px;
+      --t:          0.32s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html, body { height: 100%; overflow: hidden; background: var(--bg-deep); }
+    body { font-family: 'Inter', sans-serif; color: var(--text-hi); }
+
+    /* ─── THREE.JS CANVAS ─── */
+    #bg-canvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+
+    /* ─── APP SHELL ─── */
+    #app {
+      position: relative; z-index: 1;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ─── TOP NAV ─── */
+    #topnav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px;
+      background: rgba(4,7,15,0.82);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      flex-shrink: 0;
+      gap: 16px;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+
+    .nav-logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800; color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: -0.03em;
+      flex-shrink: 0;
+    }
+
+    .nav-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px; font-weight: 700; color: var(--text-hi);
+    }
+
+    .nav-sub {
+      font-size: 10px; color: var(--text-lo); font-weight: 400;
+      letter-spacing: 0.06em; text-transform: uppercase; margin-top: 1px;
+    }
+
+    .nav-divider {
+      width: 1px; height: 28px; background: var(--border); flex-shrink: 0;
+    }
+
+    .nav-project-tag {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 8px; padding: 6px 12px;
+    }
+
+    .nav-project-tag .ptag-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    .nav-project-tag .ptag-text {
+      font-size: 11px; font-weight: 600; color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    /* Scene dots */
+    #progress-dots {
+      display: flex; gap: 7px; align-items: center;
+    }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-lo); transition: var(--t);
+      cursor: pointer; position: relative;
+    }
+
+    .dot.active {
+      background: var(--accent); box-shadow: 0 0 10px var(--accent);
+      width: 26px; border-radius: 4px;
+    }
+
+    .dot.done { background: var(--accent3); }
+
+    .dot-tip {
+      position: absolute; bottom: -24px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px; color: var(--text-mid); white-space: nowrap;
+      opacity: 0; transition: var(--t); pointer-events: none;
+    }
+
+    .dot:hover .dot-tip { opacity: 1; }
+
+    .scene-counter {
+      font-size: 12px; color: var(--text-mid);
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: 0.06em; flex-shrink: 0;
+    }
+
+    .scene-counter span { color: var(--accent); font-weight: 700; }
+
+    /* ─── SCENE VIEWPORT ─── */
+    #scene-viewport {
+      flex: 1; position: relative; overflow: hidden;
+    }
+
+    /* ─── SCENES ─── */
+    .scene {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px 24px;
+      opacity: 0; transform: translateX(70px);
+      pointer-events: none;
+      transition: opacity 0.5s cubic-bezier(0.4,0,0.2,1),
+                  transform 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .scene.active {
+      opacity: 1; transform: translateX(0); pointer-events: all;
+    }
+
+    .scene.exit-left {
+      opacity: 0; transform: translateX(-70px);
+    }
+
+    /* ─── SCENE CARD ─── */
+    .scene-card {
+      width: 100%; max-width: 860px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 44px;
+      backdrop-filter: blur(32px);
+      box-shadow: var(--glow-blue), 0 40px 80px rgba(0,0,0,0.55);
+      overflow-y: auto;
+      max-height: calc(100vh - 148px);
+    }
+
+    /* Thin scrollbar */
+    .scene-card::-webkit-scrollbar { width: 3px; }
+    .scene-card::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* ─── BADGE ─── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.28);
+      border-radius: 100px; padding: 4px 14px;
+      font-size: 10px; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    /* ─── TITLES ─── */
+    .scene-h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 38px; font-weight: 700; line-height: 1.12;
+      color: var(--text-hi); margin-bottom: 10px;
+      letter-spacing: -0.025em;
+    }
+
+    .scene-h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px; font-weight: 700; line-height: 1.15;
+      color: var(--text-hi); margin-bottom: 10px; letter-spacing: -0.02em;
+    }
+
+    .hi { /* gradient highlight */
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .green { color: var(--accent3); }
+
+    .scene-sub {
+      font-size: 14px; color: var(--text-mid); line-height: 1.65;
+      margin-bottom: 28px; max-width: 640px;
+    }
+
+    /* ─── WELCOME LAYOUT ─── */
+    .welcome-wrap { text-align: center; }
+    .welcome-wrap .scene-h1 { font-size: 44px; }
+    .welcome-wrap .scene-sub { margin: 0 auto 24px; }
+
+    .prog-row {
+      display: flex; justify-content: center; gap: 10px;
+      flex-wrap: wrap; margin-bottom: 30px;
+    }
+
+    .pbadge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.03em;
+    }
+
+    .pb-blue  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
+    .pb-pur   { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); color: #a78bfa; }
+    .pb-gold  { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.28); color: #fbbf24; }
+    .pb-green { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.28); color: #34d399; }
+
+    .cta-row {
+      display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 26px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: var(--t); border: none;
+      font-family: 'Inter', sans-serif; letter-spacing: 0.01em; text-decoration: none;
+    }
+
+    .btn-p {
+      background: linear-gradient(135deg, var(--accent), #5b9cf9);
+      color: #fff; box-shadow: 0 4px 20px rgba(59,130,246,0.35);
+    }
+
+    .btn-p:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59,130,246,0.5); }
+
+    .btn-o {
+      background: transparent; color: var(--text-mid);
+      border: 1px solid var(--border);
+    }
+
+    .btn-o:hover { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.06); }
+
+    .btn-g {
+      background: transparent; color: var(--accent2);
+      border: 1px solid rgba(139,92,246,0.3);
+    }
+
+    .btn-g:hover { background: rgba(139,92,246,0.1); border-color: var(--accent2); transform: translateY(-2px); }
+
+    .btn-green {
+      background: linear-gradient(135deg, var(--accent3), #059669);
+      color: #fff; box-shadow: 0 4px 20px rgba(16,185,129,0.3);
+    }
+
+    .btn-green:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(16,185,129,0.4); }
+
+    /* ─── STAT CARDS ─── */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 14px;
+      margin-bottom: 26px;
+    }
+
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 20px 18px;
+      cursor: pointer; transition: var(--t); position: relative; overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      opacity: 0; transition: var(--t);
+    }
+
+    .stat-card:hover { border-color: var(--border2); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(59,130,246,0.12); }
+    .stat-card:hover::after { opacity: 0.05; }
+
+    .s-icon { font-size: 22px; margin-bottom: 10px; position: relative; z-index: 1; }
+    .s-num {
+      font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;
+      color: var(--text-hi); margin-bottom: 4px; position: relative; z-index: 1;
+    }
+
+    .s-label { font-size: 12px; color: var(--text-mid); line-height: 1.4; position: relative; z-index: 1; }
+
+    .s-hint {
+      margin-top: 10px; font-size: 11px; color: var(--accent);
+      opacity: 0; transform: translateY(5px); transition: var(--t);
+      position: relative; z-index: 1;
+    }
+
+    .stat-card:hover .s-hint { opacity: 1; transform: translateY(0); }
+
+    /* ─── OBJECTIVE TILES ─── */
+    .obj-grid {
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .obj-tile {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 18px 20px;
+      cursor: pointer; transition: var(--t);
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+
+    .obj-tile:hover {
+      border-color: rgba(139,92,246,0.4); transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(139,92,246,0.1);
+    }
+
+    .ot-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+
+    .ot-text h4 { font-size: 13px; font-weight: 600; color: var(--text-hi); margin-bottom: 4px; }
+    .ot-text p  { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+    /* ─── CHIPS ─── */
+    .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 24px; }
+
+    .chip {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 100px; padding: 7px 16px;
+      font-size: 12px; color: var(--text-mid); cursor: pointer; transition: var(--t);
+    }
+
+    .chip:hover { border-color: var(--accent2); color: var(--text-hi); background: rgba(139,92,246,0.07); }
+    .chip-ico { font-size: 14px; }
+
+    /* ─── TIMELINE ─── */
+    .timeline { display: flex; flex-direction: column; gap: 0; margin-bottom: 24px; }
+
+    .tl-item {
+      display: flex; gap: 18px; cursor: pointer; padding: 15px 0;
+      border-bottom: 1px solid var(--border); transition: var(--t);
+    }
+
+    .tl-item:last-child { border-bottom: none; }
+    .tl-item:hover .tl-c h4 { color: var(--accent); }
+
+    .tl-l { display: flex; flex-direction: column; align-items: center; width: 38px; flex-shrink: 0; }
+
+    .tl-num {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    .tl-line { width: 2px; flex: 1; background: var(--border); margin-top: 6px; min-height: 18px; }
+
+    .tl-c h4 { font-size: 13px; font-weight: 600; color: var(--text-hi); margin-bottom: 4px; transition: var(--t); }
+    .tl-c p  { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+    .tl-meta { margin-top: 7px; display: flex; gap: 7px; flex-wrap: wrap; }
+
+    .tl-tag {
+      font-size: 10px; background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2); color: var(--accent);
+      border-radius: 4px; padding: 2px 8px;
+    }
+
+    .tl-tag.g {
+      background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: var(--accent3);
+    }
+
+    /* ─── IMPACT METRICS ─── */
+    .impact-grid {
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .impact-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 24px 20px; text-align: center;
+      transition: var(--t);
+    }
+
+    .impact-card:hover { border-color: rgba(16,185,129,0.35); box-shadow: 0 8px 24px rgba(16,185,129,0.09); }
+
+    .impact-num {
+      font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent3), #6ee7b7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 6px;
+    }
+
+    .impact-lbl { font-size: 12px; color: var(--text-mid); line-height: 1.4; }
+
+    /* ─── CTA BLOCK ─── */
+    .cta-block {
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
+      border: 1px solid rgba(59,130,246,0.25); border-radius: var(--radius-md);
+      padding: 26px 30px; text-align: center; margin-top: 8px;
+    }
+
+    .cta-block h3 {
+      font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700;
+      color: var(--text-hi); margin-bottom: 8px;
+    }
+
+    .cta-block p { font-size: 13px; color: var(--text-mid); margin-bottom: 20px; line-height: 1.6; }
+
+    .cta-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    /* ─── PARTNER ROW ─── */
+    .partner-row {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px;
+    }
+
+    .partner-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      transition: var(--t);
+    }
+
+    .partner-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+    .partner-flag { font-size: 18px; }
+
+    .partner-info h5 { font-size: 12px; font-weight: 600; color: var(--text-hi); }
+    .partner-info p  { font-size: 10px; color: var(--text-mid); }
+
+    /* ─── INFO ROW (PF side panel in S1) ─── */
+    .info-strip {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .info-cell {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+    }
+
+    .info-cell .ic-label { font-size: 10px; color: var(--text-lo); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .info-cell .ic-val   { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+
+    /* ─── BOTTOM NAV ─── */
+    #bottom-nav {
+      padding: 14px 28px;
+      background: rgba(4,7,15,0.88);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .nav-hint {
+      font-size: 11px; color: var(--text-lo);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .key {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 4px;
+      font-size: 9px; color: var(--text-mid);
+    }
+
+    .nav-controls { display: flex; gap: 10px; align-items: center; }
+
+    /* ─── MODAL ─── */
+    #overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(10px);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.28s ease;
+    }
+
+    #overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #0b1228;
+      border: 1px solid rgba(59,130,246,0.22);
+      border-radius: 20px; padding: 32px 36px; max-width: 500px; width: 100%;
+      box-shadow: 0 50px 100px rgba(0,0,0,0.65), var(--glow-blue);
+      transform: scale(0.94) translateY(12px);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      position: relative; max-height: 85vh; overflow-y: auto;
+    }
+
+    #overlay.open .modal { transform: scale(1) translateY(0); }
+
+    .modal::-webkit-scrollbar { width: 3px; }
+    .modal::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .modal-x {
+      position: fixed;
+      width: 36px; height: 36px; background: #0b1228;
+      border: 1px solid rgba(59,130,246,0.35); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 15px; color: var(--text-mid);
+      transition: var(--t); z-index: 300;
+      font-family: inherit;
+      /* positioned via JS when modal opens */
+    }
+
+    .modal-x:hover { color: var(--text-hi); border-color: var(--accent); background: rgba(59,130,246,0.12); }
+
+    .m-ico { font-size: 34px; margin-bottom: 14px; }
+    .m-title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-hi); margin-bottom: 10px; }
+    .m-body  { font-size: 13px; color: var(--text-mid); line-height: 1.75; }
+    .m-tag   { display: inline-block; margin-top: 14px; font-size: 10px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.22); color: var(--accent); border-radius: 5px; padding: 3px 10px; letter-spacing: 0.06em; }
+
+    /* ─── FORM ─── */
+    .form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+
+    .fr { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .fg { display: flex; flex-direction: column; gap: 5px; }
+
+    .fl { font-size: 10px; font-weight: 700; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .fi {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 13px; font-size: 13px; color: var(--text-hi);
+      font-family: 'Inter', sans-serif; outline: none; transition: var(--t);
+    }
+
+    .fi:focus { border-color: var(--accent); background: rgba(59,130,246,0.05); }
+    .fi::placeholder { color: var(--text-lo); }
+    textarea.fi { resize: vertical; min-height: 72px; }
+
+    .f-success { display: none; text-align: center; padding: 16px 0; }
+    .f-success.show { display: block; }
+    .f-ico { font-size: 36px; margin-bottom: 8px; }
+    .f-success h4 { color: var(--accent3); font-family: 'Space Grotesk', sans-serif; font-size: 17px; margin-bottom: 5px; }
+    .f-success p  { font-size: 12px; color: var(--text-mid); line-height: 1.6; }
+
+    /* ─── LOADER ─── */
+    #loader {
+      position: fixed; inset: 0; background: var(--bg-deep);
+      z-index: 999; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 22px;
+      transition: opacity 0.6s ease;
+    }
+
+    #loader.hidden { opacity: 0; pointer-events: none; }
+
+    .loader-logo {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 16px; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 800; color: #fff;
+      font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.03em;
+      animation: float-logo 2.2s ease-in-out infinite;
+    }
+
+    @keyframes float-logo {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-9px); }
+    }
+
+    .loader-label {
+      font-size: 12px; color: var(--text-mid); letter-spacing: 0.05em;
+    }
+
+    .loader-bar {
+      width: 200px; height: 2px;
+      background: var(--bg-card); border-radius: 2px; overflow: hidden;
+    }
+
+    .loader-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px; animation: fill-bar 1.3s ease-out forwards;
+    }
+
+    @keyframes fill-bar { from { width: 0; } to { width: 100%; } }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(-16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .anim-in { animation: slide-in 0.45s ease both; }
+
+    /* ─── MOBILE ─── */
+    @media (max-width: 640px) {
+      .scene-card { padding: 22px 18px; }
+      .scene-h1, .welcome-wrap .scene-h1 { font-size: 26px; }
+      .scene-h2 { font-size: 24px; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .obj-grid { grid-template-columns: 1fr; }
+      .impact-grid { grid-template-columns: 1fr 1fr; }
+      .fr { grid-template-columns: 1fr; }
+      .info-strip { grid-template-columns: 1fr; }
+      #topnav { padding: 12px 14px; }
+      .nav-divider, .nav-project-tag, .scene-counter { display: none; }
+      #bottom-nav { padding: 12px 16px; }
+      .nav-hint { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-logo">PF</div>
+  <div class="loader-label">Loading Proposal Room…</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- Background canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<div id="app">
+
+  <!-- Top Navigation -->
+  <nav id="topnav">
+    <div class="nav-brand">
+      <div class="nav-logo">PF</div>
+      <div>
+        <div class="nav-name">Project Factory</div>
+        <div class="nav-sub">Immersive Proposal Room</div>
+      </div>
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <div class="nav-project-tag">
+      <div class="ptag-dot"></div>
+      <span class="ptag-text">SpeakUp — KA220-YOU / 2025–2027</span>
+    </div>
+
+    <div id="progress-dots" style="flex:1; justify-content:center; display:flex; gap:7px; align-items:center;">
+      <div class="dot active" id="dot-0" onclick="go(0)"><span class="dot-tip">Welcome</span></div>
+      <div class="dot" id="dot-1" onclick="go(1)"><span class="dot-tip">Problem</span></div>
+      <div class="dot" id="dot-2" onclick="go(2)"><span class="dot-tip">Objectives</span></div>
+      <div class="dot" id="dot-3" onclick="go(3)"><span class="dot-tip">Activities</span></div>
+      <div class="dot" id="dot-4" onclick="go(4)"><span class="dot-tip">Impact</span></div>
+    </div>
+
+    <div class="scene-counter">Scene <span id="snum">1</span> / 5</div>
+  </nav>
+
+  <!-- Scene Viewport -->
+  <div id="scene-viewport">
+
+    <!-- ══════════════════════════════
+         SCENE 0 — WELCOME
+    ══════════════════════════════ -->
+    <div class="scene active" id="scene-0">
+      <div class="scene-card">
+        <div class="welcome-wrap">
+          <div class="badge"><div class="badge-dot"></div>Project Factory — Erasmus+ Proposal Room</div>
+          <h1 class="scene-h1">
+            <span class="hi">SpeakUp:</span><br/>
+            Digital Literacy Against<br/>Online Disinformation
+          </h1>
+          <p class="scene-sub">
+            A KA220-YOU Erasmus+ Cooperation Partnership empowering young people across 6 European countries to critically evaluate digital content, identify disinformation, and become active, informed citizens.
+          </p>
+
+          <div class="prog-row">
+            <span class="pbadge pb-blue">🇪🇺 Erasmus+ KA220-YOU</span>
+            <span class="pbadge pb-pur">🧠 Digital Literacy</span>
+            <span class="pbadge pb-gold">📅 2025 — 2027</span>
+            <span class="pbadge pb-green">🌍 6 Countries</span>
+          </div>
+
+          <div class="info-strip" style="text-align:left;">
+            <div class="info-cell">
+              <div class="ic-label">Project Lead</div>
+              <div class="ic-val">Project Factory EU</div>
+            </div>
+            <div class="info-cell">
+              <div class="ic-label">Expert</div>
+              <div class="ic-val">Ali Ulusoy</div>
+            </div>
+            <div class="info-cell">
+              <div class="ic-label">Programme</div>
+              <div class="ic-val">Erasmus+ KA220-YOU</div>
+            </div>
+          </div>
+
+          <div class="cta-row">
+            <button class="btn btn-p" onclick="go(1)" id="start-btn">▶ Start the Journey</button>
+            <button class="btn btn-o" onclick="openModal('m-about')">ℹ About this Room</button>
+            <a href="vr.html" class="btn btn-o" style="border-color:rgba(192,132,252,0.4);color:#c084fc;" title="Open immersive 3D/VR version">🥽 VR Room</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         SCENE 1 — PROBLEM
+    ══════════════════════════════ -->
+    <div class="scene" id="scene-1">
+      <div class="scene-card">
+        <div class="badge"><div class="badge-dot"></div>Scene 2 — Problem & Context</div>
+        <h2 class="scene-h2">Why <span class="hi">Disinformation</span> Is a Youth Crisis</h2>
+        <p class="scene-sub">
+          Young Europeans aged 15–24 are the most prolific digital users — yet many lack the skills to critically evaluate what they see, share, and believe. The consequences reach far beyond individual decisions.
+        </p>
+
+        <div class="stat-grid">
+          <div class="stat-card" onclick="openModal('m-s0')" tabindex="0" role="button">
+            <div class="s-icon">📱</div>
+            <div class="s-num">67%</div>
+            <div class="s-label">of EU youth encounter disinformation weekly on social media</div>
+            <div class="s-hint">Click for source →</div>
+          </div>
+          <div class="stat-card" onclick="openModal('m-s1')" tabindex="0" role="button">
+            <div class="s-icon">🔎</div>
+            <div class="s-num">42%</div>
+            <div class="s-label">cannot distinguish credible news from manipulated content</div>
+            <div class="s-hint">Click for source →</div>
+          </div>
+          <div class="stat-card" onclick="openModal('m-s2')" tabindex="0" role="button">
+            <div class="s-icon">🗳️</div>
+            <div class="s-num">58%</div>
+            <div class="s-label">say disinformation has influenced their views on political topics</div>
+            <div class="s-hint">Click for source →</div>
+          </div>
+        </div>
+
+        <p class="scene-sub" style="font-size:13px; margin-bottom: 0;">
+          This is not a technology problem — it is an education and resilience problem. Schools, youth organisations, and municipalities are not equipped with the tools and training to address it systematically. The SpeakUp project is designed to close that gap.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         SCENE 2 — OBJECTIVES
+    ══════════════════════════════ -->
+    <div class="scene" id="scene-2">
+      <div class="scene-card">
+        <div class="badge"><div class="badge-dot"></div>Scene 3 — Objectives & Target Groups</div>
+        <h2 class="scene-h2">What <span class="hi">SpeakUp</span> Commits To</h2>
+        <p class="scene-sub">
+          Four specific objectives, delivered through a structured transnational partnership of youth NGOs, schools, municipalities, and digital content experts.
+        </p>
+
+        <div class="obj-grid">
+          <div class="obj-tile" onclick="openModal('m-o0')" tabindex="0" role="button">
+            <div class="ot-icon">🛡️</div>
+            <div class="ot-text">
+              <h4>Critical Digital Literacy Training</h4>
+              <p>Train 500 young people in verifying online content, identifying manipulation tactics, and applying fact-checking methodologies</p>
+            </div>
+          </div>
+          <div class="obj-tile" onclick="openModal('m-o1')" tabindex="0" role="button">
+            <div class="ot-icon">🧑‍🏫</div>
+            <div class="ot-text">
+              <h4>Youth Worker Capacity Building</h4>
+              <p>Equip 80 youth workers and educators across 6 countries with peer-to-peer facilitation skills and curriculum tools</p>
+            </div>
+          </div>
+          <div class="obj-tile" onclick="openModal('m-o2')" tabindex="0" role="button">
+            <div class="ot-icon">🌐</div>
+            <div class="ot-text">
+              <h4>Open Educational Resource Hub</h4>
+              <p>Produce a multilingual, freely licensed library of 30+ training modules, lesson plans, and facilitation guides</p>
+            </div>
+          </div>
+          <div class="obj-tile" onclick="openModal('m-o3')" tabindex="0" role="button">
+            <div class="ot-icon">📣</div>
+            <div class="ot-text">
+              <h4>Policy Dialogue & Advocacy</h4>
+              <p>Organise 4 policy roundtables with local authorities and submit 2 evidence-based policy briefs to national governments</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="scene-sub" style="font-size:11px; margin-bottom: 8px; color: var(--text-lo);">Target groups — click to explore</p>
+        <div class="chips">
+          <div class="chip" onclick="openModal('m-tg0')"><span class="chip-ico">👦</span> Youth aged 15–24</div>
+          <div class="chip" onclick="openModal('m-tg1')"><span class="chip-ico">🧑‍💼</span> Youth workers</div>
+          <div class="chip" onclick="openModal('m-tg2')"><span class="chip-ico">🏫</span> School communities</div>
+          <div class="chip" onclick="openModal('m-tg3')"><span class="chip-ico">🏛️</span> Local authorities</div>
+          <div class="chip" onclick="openModal('m-tg4')"><span class="chip-ico">📡</span> Media educators</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         SCENE 3 — ACTIVITIES
+    ══════════════════════════════ -->
+    <div class="scene" id="scene-3">
+      <div class="scene-card">
+        <div class="badge"><div class="badge-dot"></div>Scene 4 — Activities & Work Packages</div>
+        <h2 class="scene-h2">How We <span class="hi">Deliver It</span></h2>
+        <p class="scene-sub">
+          Five structured work packages over 24 months. Click any package to see details, timeline, and lead organisation.
+        </p>
+
+        <div class="timeline">
+          <div class="tl-item anim-in" onclick="openModal('m-wp0')" tabindex="0" role="button" style="animation-delay:0s">
+            <div class="tl-l"><div class="tl-num">1</div><div class="tl-line"></div></div>
+            <div class="tl-c">
+              <h4>WP1 — Coordination & Quality Management</h4>
+              <p>Governance framework, financial oversight, inter-partner communication, risk management, and reporting to EACEA</p>
+              <div class="tl-meta">
+                <span class="tl-tag">M1–M24</span>
+                <span class="tl-tag g">Lead: Project Factory EU</span>
+                <span class="tl-tag">Output: Management reports, risk register</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-item anim-in" onclick="openModal('m-wp1')" tabindex="0" role="button" style="animation-delay:0.06s">
+            <div class="tl-l"><div class="tl-num">2</div><div class="tl-line"></div></div>
+            <div class="tl-c">
+              <h4>WP2 — Needs Assessment & Research</h4>
+              <p>Baseline surveys across 6 countries on disinformation exposure, digital literacy gaps, and existing educational frameworks</p>
+              <div class="tl-meta">
+                <span class="tl-tag">M1–M5</span>
+                <span class="tl-tag g">Lead: University of Gdańsk</span>
+                <span class="tl-tag">Output: 6 country reports + synthesis</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-item anim-in" onclick="openModal('m-wp2')" tabindex="0" role="button" style="animation-delay:0.12s">
+            <div class="tl-l"><div class="tl-num">3</div><div class="tl-line"></div></div>
+            <div class="tl-c">
+              <h4>WP3 — Curriculum & Resource Development</h4>
+              <p>Co-creation of 30+ training modules, fact-checking toolkits, and educator guides in 6 languages. Youth-tested and peer-reviewed</p>
+              <div class="tl-meta">
+                <span class="tl-tag">M4–M10</span>
+                <span class="tl-tag g">Lead: SpeakUp NGO (Germany)</span>
+                <span class="tl-tag">Output: Open OER library</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-item anim-in" onclick="openModal('m-wp3')" tabindex="0" role="button" style="animation-delay:0.18s">
+            <div class="tl-l"><div class="tl-num">4</div><div class="tl-line"></div></div>
+            <div class="tl-c">
+              <h4>WP4 — Training & Peer Learning Delivery</h4>
+              <p>500 youth trained across 6 countries. 80 youth workers trained as facilitators. 3 transnational youth exchanges included</p>
+              <div class="tl-meta">
+                <span class="tl-tag">M8–M20</span>
+                <span class="tl-tag g">Lead: All partners</span>
+                <span class="tl-tag">Output: Training reports, participant records</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-item anim-in" onclick="openModal('m-wp4')" tabindex="0" role="button" style="animation-delay:0.24s">
+            <div class="tl-l"><div class="tl-num">5</div></div>
+            <div class="tl-c">
+              <h4>WP5 — Dissemination, Policy & Evaluation</h4>
+              <p>Final conference in Brussels, independent external evaluation, 2 policy briefs, and multimedia dissemination campaign</p>
+              <div class="tl-meta">
+                <span class="tl-tag">M18–M24</span>
+                <span class="tl-tag g">Lead: Project Factory EU</span>
+                <span class="tl-tag">Output: Final report, policy briefs, conference</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="scene-sub" style="font-size:12px; margin-bottom: 8px; color: var(--text-lo);">Consortium partners</p>
+        <div class="partner-row">
+          <div class="partner-card" onclick="openModal('m-p0')">
+            <div class="partner-flag">🇹🇷</div>
+            <div class="partner-info"><h5>Project Factory EU</h5><p>Coordinator</p></div>
+          </div>
+          <div class="partner-card" onclick="openModal('m-p1')">
+            <div class="partner-flag">🇩🇪</div>
+            <div class="partner-info"><h5>SpeakUp NGO</h5><p>Germany</p></div>
+          </div>
+          <div class="partner-card" onclick="openModal('m-p2')">
+            <div class="partner-flag">🇵🇱</div>
+            <div class="partner-info"><h5>Univ. of Gdańsk</h5><p>Poland</p></div>
+          </div>
+          <div class="partner-card" onclick="openModal('m-p3')">
+            <div class="partner-flag">🇪🇸</div>
+            <div class="partner-info"><h5>MediaLab Madrid</h5><p>Spain</p></div>
+          </div>
+          <div class="partner-card" onclick="openModal('m-p4')">
+            <div class="partner-flag">🇮🇹</div>
+            <div class="partner-info"><h5>Roma Youth Ctr.</h5><p>Italy</p></div>
+          </div>
+          <div class="partner-card" onclick="openModal('m-p5')">
+            <div class="partner-flag">🇬🇷</div>
+            <div class="partner-info"><h5>Digital Democracy</h5><p>Greece</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         SCENE 4 — IMPACT & CTA
+    ══════════════════════════════ -->
+    <div class="scene" id="scene-4">
+      <div class="scene-card">
+        <div class="badge"><div class="badge-dot"></div>Scene 5 — Impact & Next Steps</div>
+        <h2 class="scene-h2">The <span class="hi">Change</span> We Create</h2>
+        <p class="scene-sub">
+          Measurable outcomes at participant, institutional, and European policy level — with all training materials remaining free and open after the project ends.
+        </p>
+
+        <div class="impact-grid">
+          <div class="impact-card">
+            <div class="impact-num" id="c-500">500+</div>
+            <div class="impact-lbl">Young people trained in critical digital literacy</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" id="c-80">80</div>
+            <div class="impact-lbl">Youth workers certified as facilitators</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" id="c-30">30+</div>
+            <div class="impact-lbl">Open learning resources published in 6 languages</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" id="c-6">6</div>
+            <div class="impact-lbl">Partner countries with active delivery infrastructure</div>
+          </div>
+        </div>
+
+        <div class="cta-block">
+          <h3>Interested in partnering, adopting, or funding?</h3>
+          <p>
+            The SpeakUp project is seeking additional partners, implementation allies, and institutional supporters.<br/>
+            Contact <strong style="color:var(--text-hi);">Project Factory EU</strong> — led by <strong style="color:var(--text-hi);">Ali Ulusoy, EU Grant Expert & AI Strategist.</strong>
+          </p>
+          <div class="cta-btns">
+            <button class="btn btn-p" onclick="openModal('m-contact')" id="cta-btn">✉ Schedule a Meeting</button>
+            <button class="btn btn-g" onclick="openModal('m-pf')">🏢 About Project Factory</button>
+            <button class="btn btn-o" onclick="openModal('m-dl')">↓ Download Summary</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /scene-viewport -->
+
+  <!-- Bottom Navigation -->
+  <div id="bottom-nav">
+    <div class="nav-hint">
+      <span class="key">←</span><span class="key">→</span> Arrow keys to navigate · Click dots to jump
+    </div>
+    <div class="nav-controls">
+      <button class="btn btn-o" id="share-btn" onclick="copyLink()" style="padding:9px 14px;font-size:12px;" title="Copy link to clipboard">⎘ Share</button>
+      <button class="btn btn-o" id="btn-prev" onclick="prev()" style="padding:9px 18px;font-size:13px;">← Back</button>
+      <button class="btn btn-p" id="btn-next" onclick="next()" style="padding:9px 18px;font-size:13px;">Next →</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Modal Overlay -->
+<div id="overlay" onclick="closeOverlay(event)">
+  <button class="modal-x" id="modal-close-btn" onclick="closeModal(); event.stopPropagation();" aria-label="Close">✕</button>
+  <div class="modal" id="modal">
+    <div class="m-ico" id="m-ico">ℹ</div>
+    <div class="m-title" id="m-title"></div>
+    <div class="m-body" id="m-body"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  THREE.JS PARTICLE BACKGROUND
+// ════════════════════════════════════════════════
+(function () {
+  const canvas = document.getElementById('bg-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 1000);
+  cam.position.z = 6;
+
+  // 1400 particles
+  const N = 1400;
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+  const palette = [[0.23,0.51,0.96],[0.55,0.36,0.96],[0.06,0.73,0.51]];
+
+  for (let i = 0; i < N; i++) {
+    pos[i*3]   = (Math.random() - 0.5) * 45;
+    pos[i*3+1] = (Math.random() - 0.5) * 45;
+    pos[i*3+2] = (Math.random() - 0.5) * 22 - 5;
+    const c = palette[Math.floor(Math.random() * palette.length)];
+    col[i*3] = c[0]; col[i*3+1] = c[1]; col[i*3+2] = c[2];
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+
+  const mat = new THREE.PointsMaterial({ size: 0.038, vertexColors: true, transparent: true, opacity: 0.65 });
+  const pts = new THREE.Points(geo, mat);
+  scene.add(pts);
+
+  // Rings
+  const rings = [];
+  [[0.23,0.51,0.96],[0.55,0.36,0.96],[0.06,0.73,0.51]].forEach((c, i) => {
+    const g = new THREE.TorusGeometry(2.2 + i * 1.8, 0.004, 8, 80);
+    const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(...c), transparent: true, opacity: 0.09 - i * 0.01 });
+    const r = new THREE.Mesh(g, m);
+    r.rotation.x = 1.1 + i * 0.5;
+    r.rotation.y = i * 0.7;
+    r.position.z = -5 - i * 2;
+    scene.add(r);
+    rings.push(r);
+  });
+
+  // Floating hexagons
+  const hexes = [];
+  for (let i = 0; i < 5; i++) {
+    const g = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 6);
+    const m = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x3b82f6 : 0x8b5cf6, transparent: true, opacity: 0.06 });
+    const h = new THREE.Mesh(g, m);
+    h.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, -3);
+    h.rotation.x = Math.PI / 2;
+    scene.add(h);
+    hexes.push({ mesh: h, speed: 0.003 + Math.random() * 0.004, offset: Math.random() * Math.PI * 2 });
+  }
+
+  let mx = 0, my = 0, t = 0;
+  document.addEventListener('mousemove', e => {
+    mx = (e.clientX / innerWidth  - 0.5) * 0.4;
+    my = (e.clientY / innerHeight - 0.5) * 0.25;
+  });
+
+  function animate() {
+    t += 0.003;
+    requestAnimationFrame(animate);
+    pts.rotation.x = t * 0.04 + my * 0.22;
+    pts.rotation.y = t * 0.06 + mx * 0.22;
+    rings.forEach((r, i) => { r.rotation.z = t * (0.08 + i * 0.03); r.rotation.x += 0.0008; });
+    hexes.forEach(h => {
+      h.mesh.position.y += Math.sin(t + h.offset) * h.speed;
+      h.mesh.rotation.z += 0.005;
+    });
+    renderer.render(scene, cam);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    cam.aspect = innerWidth / innerHeight;
+    cam.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+})();
+
+// ════════════════════════════════════════════════
+//  SCENE NAVIGATION
+// ════════════════════════════════════════════════
+let cur = 0;
+const TOTAL = 5;
+
+function go(idx) {
+  if (idx < 0 || idx >= TOTAL) return;
+
+  const prev = document.getElementById('scene-' + cur);
+  const next = document.getElementById('scene-' + idx);
+
+  prev.classList.remove('active');
+  if (idx > cur) prev.classList.add('exit-left');
+
+  setTimeout(() => prev.classList.remove('exit-left'), 560);
+
+  next.style.transform = idx > cur ? 'translateX(70px)' : 'translateX(-70px)';
+  next.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => { next.style.transform = ''; }));
+
+  cur = idx;
+  updateUI();
+  if (cur === 4) triggerCounters();
+}
+
+function next() { go(cur + 1); }
+function prev() { go(cur - 1); }
+
+function updateUI() {
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i === cur)  d.classList.add('active');
+    if (i < cur)    d.classList.add('done');
+  });
+
+  document.getElementById('snum').textContent = cur + 1;
+
+  const bp = document.getElementById('btn-prev');
+  const bn = document.getElementById('btn-next');
+
+  bp.style.opacity = cur === 0 ? '0.28' : '1';
+  bp.disabled = cur === 0;
+
+  if (cur === TOTAL - 1) {
+    bn.textContent = 'Get in Touch';
+    bn.onclick = () => openModal('m-contact');
+    bn.className = 'btn btn-green';
+    bn.style.cssText = 'padding:9px 18px;font-size:13px;';
+  } else {
+    bn.textContent = 'Next →';
+    bn.onclick = next;
+    bn.className = 'btn btn-p';
+    bn.style.cssText = 'padding:9px 18px;font-size:13px;';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft')  prev();
+  if (e.key === 'Escape')     closeModal();
+});
+
+// ── TOUCH / SWIPE SUPPORT ─────────────────────────────
+let _tx = 0, _ty = 0;
+document.addEventListener('touchstart', e => {
+  _tx = e.touches[0].clientX;
+  _ty = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  // Don't swipe while a modal is open
+  if (document.getElementById('overlay').classList.contains('open')) return;
+  const dx = e.changedTouches[0].clientX - _tx;
+  const dy = e.changedTouches[0].clientY - _ty;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 52) {
+    dx < 0 ? next() : prev();
+  }
+}, { passive: true });
+
+// ════════════════════════════════════════════════
+//  IMPACT COUNTER ANIMATION
+// ════════════════════════════════════════════════
+let counted = false;
+function triggerCounters() {
+  if (counted) return;
+  counted = true;
+
+  [
+    { id: 'c-500', end: 500, suf: '+' },
+    { id: 'c-80',  end: 80,  suf: ''  },
+    { id: 'c-30',  end: 30,  suf: '+' },
+    { id: 'c-6',   end: 6,   suf: ''  },
+  ].forEach(({ id, end, suf }) => {
+    const el = document.getElementById(id);
+    let n = 0;
+    const step = Math.ceil(end / 55);
+    const t = setInterval(() => {
+      n += step;
+      if (n >= end) { n = end; clearInterval(t); }
+      el.textContent = n.toLocaleString() + suf;
+    }, 28);
+  });
+}
+
+// ════════════════════════════════════════════════
+//  MODAL DATA
+// ════════════════════════════════════════════════
+const MODALS = {
+  'm-about': {
+    ico: '🌐', title: 'About the Immersive Proposal Room',
+    body: `This is a Project Factory Immersive Proposal Room — a web-based interactive presentation format that transforms a complex EU funding proposal into a structured, navigable experience. No headset required. No installation needed. Accessible on any device via a shareable link.<br/><br/>This room presents the <strong style="color:#eef2ff">SpeakUp: Digital Literacy Against Online Disinformation</strong> project, submitted under the Erasmus+ KA220-YOU cooperation partnership action.<br/><br/><em style="color:#3b82f6">Developed by Project Factory EU — EU Grant Expert & AI Strategist: Ali Ulusoy</em>`
+  },
+  'm-s0': {
+    ico: '📱', title: 'Disinformation Exposure Among EU Youth',
+    body: '67% of young Europeans aged 15–24 report encountering what they believe to be disinformation on social media platforms on a weekly basis. The figure rises to 74% among daily social media users. Platforms most commonly cited: TikTok, Instagram, Twitter/X, and YouTube.',
+    tag: 'Source: Eurobarometer Special Survey 2024'
+  },
+  'm-s1': {
+    ico: '🔎', title: 'Critical Evaluation Deficit',
+    body: '42% of EU youth cannot reliably distinguish between credible journalism, opinion content, and deliberately manipulated or fabricated digital material. This rises to 61% for AI-generated deepfake video content. Only 18% have ever received formal instruction in media literacy or fact-checking methods.',
+    tag: 'Source: European Media Literacy Index 2024'
+  },
+  'm-s2': {
+    ico: '🗳️', title: 'Disinformation & Democratic Engagement',
+    body: '58% of young people in a 2024 pan-European survey reported that disinformation had influenced their opinions on at least one political topic. 34% said they had shared content that they later discovered was false. The impact is greatest on electoral, health, and migration-related news.',
+    tag: 'Source: EAVI Media Literacy Barometer 2024'
+  },
+  'm-o0': {
+    ico: '🛡️', title: 'Objective 1 — Critical Digital Literacy Training',
+    body: '500 young people aged 15–24 will receive 12 hours of structured training in: identifying logical fallacies and emotional manipulation, applying the SIFT method (Stop, Investigate, Find better coverage, Trace claims), using fact-checking databases (Snopes, AFP Fact Check, EU DisinfoLab), and recognising AI-generated synthetic media. Training delivered in 6 local languages across partner countries.'
+  },
+  'm-o1': {
+    ico: '🧑‍🏫', title: 'Objective 2 — Youth Worker Capacity Building',
+    body: '80 youth workers and educators will complete a 3-day Training of Trainers (ToT) programme. Graduates receive a European digital literacy facilitator certificate. Each trained youth worker commits to facilitating at least 3 sessions with additional participants after the project period. This multiplier effect extends the project reach beyond 500 direct beneficiaries.'
+  },
+  'm-o2': {
+    ico: '🌐', title: 'Objective 3 — Open Educational Resource Hub',
+    body: '30+ standalone training resources will be published under Creative Commons licences on an open online platform. Resources include: interactive lesson plans, student workbooks, facilitator guides, disinformation case study packs, and a multilingual glossary of manipulation tactics. All materials available in English, German, Polish, Spanish, Italian, and Greek.'
+  },
+  'm-o3': {
+    ico: '📣', title: 'Objective 4 — Policy Dialogue & Advocacy',
+    body: '4 national policy roundtables will bring together youth representatives, educators, and local government officials in each partner country. 2 consolidated policy briefs will be submitted to national education ministries and the European Parliament Youth Intergroup. The project aims to feed directly into the EU Media Literacy Week agenda and the Digital Services Act implementation monitoring process.'
+  },
+  'm-tg0': {
+    ico: '👦', title: 'Target Group — Youth aged 15–24',
+    body: 'Primary direct beneficiaries. Selection prioritises young people with limited access to formal media literacy education: those in rural communities, vocational schools, and lower-income urban neighbourhoods. Particular focus on first-generation internet users and youth from minority or migrant backgrounds.'
+  },
+  'm-tg1': {
+    ico: '🧑‍💼', title: 'Target Group — Youth Workers',
+    body: 'Practitioners employed or volunteering in youth centres, NGOs, and informal education settings. They serve as multipliers after completion of the Training of Trainers programme. Each youth worker is expected to train at least 20 additional young people after the project ends, substantially extending the project\'s impact.'
+  },
+  'm-tg2': {
+    ico: '🏫', title: 'Target Group — School Communities',
+    body: 'Secondary education settings where SpeakUp modules will be piloted as optional or embedded curriculum components. Partner schools in each country will receive a customised starter kit. Teachers participating in the pilot will contribute feedback that shapes the final OER library design.'
+  },
+  'm-tg3': {
+    ico: '🏛️', title: 'Target Group — Local Authorities',
+    body: 'Municipal officials involved in youth policy, civic education, and digital inclusion programming. Targeted through WP5 policy roundtables. Authorities in partner municipalities have committed to reviewing project outputs and integrating relevant tools into local digital literacy strategies.'
+  },
+  'm-tg4': {
+    ico: '📡', title: 'Target Group — Media Educators',
+    body: 'Professionals working at the intersection of journalism, media studies, and civic education — including staff from public broadcasters, press freedom organisations, and university journalism departments. They contribute expert input to curriculum design and serve as validators for the open resource library.'
+  },
+  'm-wp0': {
+    ico: '⚙️', title: 'WP1 — Coordination & Quality Management',
+    body: 'Covers the full 24-month lifecycle. Includes: kick-off meeting (Month 1, Istanbul), 5 transnational partner meetings, monthly digital coordination calls, mid-term progress review (Month 12), final report and financial closure (Month 24). All reporting submitted to EACEA on schedule. Risk management reviewed quarterly. Lead: Project Factory EU (Ali Ulusoy).'
+  },
+  'm-wp1': {
+    ico: '🔬', title: 'WP2 — Needs Assessment & Research',
+    body: 'Baseline data collection in all 6 partner countries (Months 1–5). Methodology: online surveys (min. 150 youth respondents per country) + 6 focus groups. Research areas: media consumption habits, disinformation exposure frequency, trust in institutions, existing digital literacy provision. Output: 6 national reports + European synthesis document. Led by University of Gdańsk Department of Media Studies.'
+  },
+  'm-wp2': {
+    ico: '📚', title: 'WP3 — Curriculum & Resource Development',
+    body: 'Co-creation of the SpeakUp Learning Framework (Months 4–10). 30+ modules structured across 4 competence levels: Awareness → Analysis → Action → Advocacy. All content reviewed by youth representatives before publication. Translated by native-speaker translators in each partner country. Published on an open platform with CC-BY licence. Led by SpeakUp NGO (Germany) with input from all partners.'
+  },
+  'm-wp3': {
+    ico: '🏃', title: 'WP4 — Training & Peer Learning Delivery',
+    body: 'Main implementation phase (Months 8–20). 500 youth trained through 50 workshop sessions (avg. 10 participants per session). 80 youth workers complete ToT in Months 9–11. 3 transnational youth exchanges: Gdańsk (Month 12), Madrid (Month 16), Rome (Month 19). All exchanges include inter-cultural disinformation analysis exercises and cross-country peer teaching. Participants receive digital certificates via EuroPass Mobility.'
+  },
+  'm-wp4': {
+    ico: '📡', title: 'WP5 — Dissemination, Policy & Evaluation',
+    body: 'Final project phase (Months 18–24). International conference in Brussels (Month 22) with 80+ external participants. Independent evaluation conducted by external evaluator (contracted at Month 3). 2 policy briefs submitted to national ministries and MEP offices. Multimedia dissemination campaign across all partner networks. Full project documentation and OER library remain online for minimum 5 years post-project.'
+  },
+  'm-p0': {
+    ico: '🇹🇷', title: 'Project Factory EU — Lead Partner',
+    body: 'Istanbul-based EU project development consultancy specialising in Erasmus+, CERV, Horizon, and Creative Europe proposals. Led by Ali Ulusoy, EU Grant Expert & AI Strategist. Project Factory designed the SpeakUp project concept, coordinated the consortium, and leads WP1 and WP5. Brings a track record of 40+ successfully funded EU projects across 20 countries.'
+  },
+  'm-p1': {
+    ico: '🇩🇪', title: 'SpeakUp NGO — Germany',
+    body: 'Berlin-based digital civil society organisation focused on youth media literacy and freedom of expression. Leads WP3 (curriculum development). Brings content expertise and an established network of 120+ youth trainers across Germany, Austria, and Switzerland. Has delivered EU-funded media literacy projects since 2017.'
+  },
+  'm-p2': {
+    ico: '🇵🇱', title: 'University of Gdańsk — Poland',
+    body: 'Department of Media Studies and Journalism. Leads WP2 (needs assessment and research). Brings academic research infrastructure, access to student volunteer networks, and a peer-reviewed publication channel for project results. Has authored 3 EU-commissioned reports on disinformation and youth in the past 4 years.'
+  },
+  'm-p3': {
+    ico: '🇪🇸', title: 'MediaLab Madrid — Spain',
+    body: 'Madrid-based civic innovation organisation with expertise in digital citizenship, open education, and participatory media. Contributes to WP3 and WP4. Hosts transnational youth exchange in Month 16. Brings a participant community of 3,000+ youth across Madrid region.'
+  },
+  'm-p4': {
+    ico: '🇮🇹', title: 'Roma Youth Centre — Italy',
+    body: 'Non-formal education centre serving diverse youth communities in Rome, with strong reach among first- and second-generation migrant youth. Contributes to WP4 training delivery. Hosts transnational exchange in Month 19. Brings experience delivering EU youth mobility projects under KA1 and KA2.'
+  },
+  'm-p5': {
+    ico: '🇬🇷', title: 'Digital Democracy — Greece',
+    body: 'Athens-based policy-oriented civil society organisation focused on digital rights, data governance, and democratic participation. Contributes to WP5 (policy dialogue) and leads the Greek national roundtable. Maintains direct relationships with MEPs and Greek Ministry of Digital Governance.'
+  },
+  'm-pf': {
+    ico: '🏢', title: 'About Project Factory EU',
+    body: `Project Factory is an EU project development consultancy and training platform based in Istanbul.<br/><br/>
+<strong style="color:#eef2ff">Led by Ali Ulusoy</strong> — EU Grant Expert & AI Strategist — Project Factory specialises in:<br/><br/>
+• Erasmus+ (KA1, KA2, KA3) proposal engineering<br/>
+• CERV, Horizon, and Creative Europe applications<br/>
+• Proposal Engineering Bootcamp (online training platform)<br/>
+• AI-powered writing tools for EU project developers<br/>
+• Consortium building and partner matchmaking<br/><br/>
+<em style="color:#3b82f6">The SpeakUp Immersive Proposal Room is Project Factory's first commercial demo of its new Immersive Proposal experience format.</em>`
+  },
+  'm-dl': {
+    ico: '📄', title: 'Download Project Summary',
+    body: `A formatted project brief is available below. Click the button to open a print-optimised version — use <strong style="color:#eef2ff">Ctrl+P → Save as PDF</strong> in your browser to save it as a file.<br/><br/><button class="btn btn-p" onclick="printSummary()" style="margin-top:8px;width:100%;justify-content:center;">🖨️ Open Printable Summary</button><br/><br/>For the full proposal document or a 30-minute briefing call with Ali Ulusoy, use the <em style="color:#60a5fa">Schedule a Meeting</em> form.`
+  },
+  'm-contact': {
+    ico: '✉️', title: 'Schedule a Meeting', body: null, isForm: true
+  }
+};
+
+// ════════════════════════════════════════════════
+//  MODAL SYSTEM
+// ════════════════════════════════════════════════
+function openModal(id) {
+  const d = MODALS[id];
+  if (!d) return;
+
+  document.getElementById('m-ico').textContent = d.ico;
+  document.getElementById('m-title').textContent = d.title;
+
+  const body = document.getElementById('m-body');
+
+  if (d.isForm) {
+    body.innerHTML = `
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:14px;">Leave your details — Ali Ulusoy will respond within 24 hours.</p>
+      <div class="form" id="pf-form">
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">Name</label>
+            <input class="fi" id="pf-name" type="text" placeholder="Your name" />
+          </div>
+          <div class="fg">
+            <label class="fl">Organisation</label>
+            <input class="fi" id="pf-org" type="text" placeholder="Organisation name" />
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Email</label>
+          <input class="fi" id="pf-email" type="email" placeholder="you@organisation.eu" />
+        </div>
+        <div class="fg">
+          <label class="fl">Country</label>
+          <input class="fi" id="pf-country" type="text" placeholder="e.g. Germany, Poland, Turkey…" />
+        </div>
+        <div class="fg">
+          <label class="fl">Your Interest</label>
+          <textarea class="fi" id="pf-msg" placeholder="Partner interest · Funding query · Joint application · General enquiry…"></textarea>
+        </div>
+        <button class="btn btn-p" onclick="submitForm(this)" style="width:100%;justify-content:center;">✓ Send to Project Factory</button>
+      </div>
+      <div class="f-success" id="pf-success">
+        <div class="f-ico">✅</div>
+        <h4>Message sent!</h4>
+        <p>Ali Ulusoy from Project Factory EU will reply within 24 hours.<br/>We look forward to exploring collaboration with you.</p>
+      </div>
+    `;
+  } else {
+    body.innerHTML = (d.body || '') + (d.tag ? `<br/><span class="m-tag">${d.tag}</span>` : '');
+  }
+
+  document.getElementById('overlay').classList.add('open');
+
+  // Position close button above top-right corner of modal
+  requestAnimationFrame(() => {
+    const m = document.getElementById('modal');
+    const r = m.getBoundingClientRect();
+    const btn = document.getElementById('modal-close-btn');
+    btn.style.top  = (r.top  - 18) + 'px';
+    btn.style.right = (window.innerWidth - r.right - 18) + 'px';
+  });
+}
+
+// ── CONTACT FORM — NETLIFY FORMS ──────────────────────
+async function submitForm(btn) {
+  const name    = document.getElementById('pf-name')?.value?.trim();
+  const email   = document.getElementById('pf-email')?.value?.trim();
+  const org     = document.getElementById('pf-org')?.value?.trim();
+  const country = document.getElementById('pf-country')?.value?.trim();
+  const msg     = document.getElementById('pf-msg')?.value?.trim();
+
+  if (!name || !email) { alert('Please fill in your name and email.'); return; }
+
+  const orig = btn.textContent;
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        'form-name': 'speakup-contact',
+        name, email, organisation: org, country, message: msg
+      })
+    });
+    if (res.ok) {
+      document.getElementById('pf-form').style.display = 'none';
+      document.getElementById('pf-success').classList.add('show');
+    } else {
+      btn.textContent = orig; btn.disabled = false;
+      alert('Something went wrong. Please email us directly at happykidstr@gmail.com');
+    }
+  } catch {
+    btn.textContent = orig; btn.disabled = false;
+    alert('Connection error. Please check your internet and try again.');
+  }
+}
+
+function closeOverlay(e) {
+  if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+  }, 1300);
+  updateUI();
+});
+
+updateUI();
+
+// ── SHARE / COPY LINK ────────────────────────────────
+function copyLink() {
+  const url = location.href.split('?')[0];
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('share-btn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.color = 'var(--accent3)';
+    btn.style.borderColor = 'var(--accent3)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2200);
+  }).catch(() => {
+    prompt('Copy this link:', location.href);
+  });
+}
+
+// ── PRINTABLE PROJECT SUMMARY ─────────────────────────
+function printSummary() {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SpeakUp — Project Summary | Project Factory EU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;color:#111;background:#fff;padding:36px 48px;max-width:820px;margin:0 auto}
+    h1{font-size:24px;font-weight:800;color:#1e1b4b;margin-bottom:4px;line-height:1.2}
+    .sub{font-size:13px;color:#6b7280;margin-bottom:14px}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+    .badge{font-size:11px;font-weight:700;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 12px;color:#1d4ed8}
+    h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3b82f6;margin:22px 0 8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
+    p{font-size:12px;line-height:1.7;color:#374151;margin-bottom:6px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px}
+    .card .num{font-size:22px;font-weight:800;color:#3b82f6;margin-bottom:2px}
+    .card p{font-size:11px;color:#374151;margin:0}
+    table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:10px}
+    th{background:#1e1b4b;color:#fff;text-align:left;padding:7px 10px;font-weight:600}
+    td{padding:7px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    tr:nth-child(even) td{background:#f9fafb}
+    .footer{margin-top:32px;padding-top:14px;border-top:2px solid #1e1b4b;font-size:10.5px;color:#6b7280;display:flex;justify-content:space-between;align-items:flex-end}
+    .footer strong{color:#1e1b4b}
+    @media print{body{padding:20px 24px}}
+  </style>
+</head>
+<body>
+  <h1>SpeakUp: Digital Literacy Against Online Disinformation</h1>
+  <div class="sub">Project Proposal Brief — Prepared by Project Factory EU</div>
+  <div class="meta">
+    <span class="badge">🇪🇺 Erasmus+ KA220-YOU</span>
+    <span class="badge">📅 2025 – 2027 · 24 months</span>
+    <span class="badge">🌍 6 Partner Countries</span>
+    <span class="badge">👥 500+ Direct Beneficiaries</span>
+    <span class="badge">💶 Erasmus+ Grant Funded</span>
+  </div>
+
+  <h2>Project Overview</h2>
+  <p>A 24-month Erasmus+ Cooperation Partnership addressing the digital disinformation crisis among young Europeans aged 15–24. The project trains 500 young people in critical digital literacy, equips 80 youth workers as peer facilitators, and produces 30+ open educational resources freely available in 6 languages.</p>
+
+  <h2>The Problem — Evidence Base</h2>
+  <div class="grid">
+    <div class="card"><div class="num">67%</div><p>of EU youth encounter disinformation weekly on social media <em>(Eurobarometer 2024)</em></p></div>
+    <div class="card"><div class="num">42%</div><p>cannot distinguish credible news from manipulated content <em>(EU Media Literacy Index 2024)</em></p></div>
+    <div class="card"><div class="num">58%</div><p>say disinformation has influenced their views on political topics <em>(EAVI Barometer 2024)</em></p></div>
+    <div class="card"><div class="num">18%</div><p>have received any formal instruction in media literacy or fact-checking methods</p></div>
+  </div>
+
+  <h2>Project Objectives</h2>
+  <table>
+    <tr><th>#</th><th>Objective</th><th>Measurable Target</th></tr>
+    <tr><td>O1</td><td>Critical Digital Literacy Training</td><td>500 youth trained — 12h structured programme</td></tr>
+    <tr><td>O2</td><td>Youth Worker Capacity Building</td><td>80 facilitators certified via ToT programme</td></tr>
+    <tr><td>O3</td><td>Open Educational Resource Hub</td><td>30+ OER modules — 6 languages — CC licence</td></tr>
+    <tr><td>O4</td><td>Policy Dialogue &amp; Advocacy</td><td>4 national roundtables · 2 EU policy briefs</td></tr>
+  </table>
+
+  <h2>Work Packages</h2>
+  <table>
+    <tr><th>WP</th><th>Title</th><th>Timeline</th><th>Lead Organisation</th></tr>
+    <tr><td>WP1</td><td>Coordination &amp; Quality Management</td><td>M1–M24</td><td>Project Factory EU</td></tr>
+    <tr><td>WP2</td><td>Needs Assessment &amp; Research</td><td>M1–M5</td><td>University of Gdańsk</td></tr>
+    <tr><td>WP3</td><td>Curriculum &amp; Resource Development</td><td>M4–M10</td><td>SpeakUp NGO (Germany)</td></tr>
+    <tr><td>WP4</td><td>Training &amp; Peer Learning Delivery</td><td>M8–M20</td><td>All Partners</td></tr>
+    <tr><td>WP5</td><td>Dissemination, Policy &amp; Evaluation</td><td>M18–M24</td><td>Project Factory EU</td></tr>
+  </table>
+
+  <h2>Consortium Partners</h2>
+  <table>
+    <tr><th>Organisation</th><th>Country</th><th>Role</th><th>Expertise</th></tr>
+    <tr><td>Project Factory EU</td><td>🇹🇷 Turkey</td><td>Lead Coordinator</td><td>EU project development, AI strategy</td></tr>
+    <tr><td>SpeakUp NGO</td><td>🇩🇪 Germany</td><td>Curriculum Lead</td><td>Youth media literacy, 120+ trainers</td></tr>
+    <tr><td>University of Gdańsk</td><td>🇵🇱 Poland</td><td>Research Lead</td><td>Media studies, academic research</td></tr>
+    <tr><td>MediaLab Madrid</td><td>🇪🇸 Spain</td><td>Training Partner</td><td>Digital citizenship, civic innovation</td></tr>
+    <tr><td>Roma Youth Centre</td><td>🇮🇹 Italy</td><td>Training Partner</td><td>Non-formal education, youth mobility</td></tr>
+    <tr><td>Digital Democracy</td><td>🇬🇷 Greece</td><td>Policy Partner</td><td>Digital rights, MEP networks</td></tr>
+  </table>
+
+  <h2>Expected Impact</h2>
+  <div class="grid">
+    <div class="card"><div class="num">500+</div><p>Young people trained in critical digital literacy across 6 countries</p></div>
+    <div class="card"><div class="num">80</div><p>Youth workers certified — each commits to 20+ additional participants</p></div>
+    <div class="card"><div class="num">30+</div><p>Open educational resources published in 6 languages under CC licence</p></div>
+    <div class="card"><div class="num">1,600+</div><p>Estimated reach via multiplier effect beyond direct project period</p></div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <strong>Project Factory EU</strong> · Ali Ulusoy, EU Grant Expert &amp; AI Strategist<br/>
+      happykidstr@gmail.com · KA220-YOU · 2025–2027
+    </div>
+    <div style="text-align:right">
+      <em>For partnership enquiries or full proposal,<br/>contact Project Factory EU directly.</em>
+    </div>
+  </div>
+
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+  const w = window.open('', '_blank', 'width=920,height=740');
+  w.document.write(html);
+  w.document.close();
+}
+</script>
+<!-- Netlify Forms: hidden detection form -->
+<form name="speakup-contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="text" name="name"><input type="email" name="email">
+  <input type="text" name="organisation"><input type="text" name="country">
+  <textarea name="message"></textarea>
+</form>
+</body>
+</html>
